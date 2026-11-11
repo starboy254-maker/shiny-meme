@@ -1,0 +1,211 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gold Strength Meter · MT5 · Adrian Strategy Filter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        body { background: linear-gradient(145deg, #0d1117 0%, #161b22 100%); min-height: 100vh; display: flex; justify-content: center; padding: 2rem 1rem; }
+        .container { max-width: 1000px; width: 100%; }
+
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 {
+            font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #f0c45a, #e6b450, #c99e2b);
+            -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 0.4rem;
+        }
+        .tag { display: inline-block; background: rgba(230,180,80,0.12); color: #e6b450; border: 1px solid rgba(230,180,80,0.3); padding: 0.3rem 1rem; border-radius: 40px; font-size: 0.9rem; }
+        .subtitle { color: #8b949e; font-size: 1rem; max-width: 720px; margin: 0.8rem auto 0; line-height: 1.6; }
+
+        .section-title { color: #e6edf3; font-size: 1.4rem; font-weight: 700; margin: 2.5rem 0 1rem; display: flex; align-items: center; gap: 10px; }
+        .section-title span { font-size: 0.8rem; background: #2d333b; color: #8b949e; padding: 0.2rem 0.8rem; border-radius: 40px; font-weight: 500; }
+
+        /* meter mockup */
+        .meter-box {
+            background: #0d1117; border: 1px solid #30363d; border-radius: 24px; padding: 1.8rem;
+            margin-bottom: 1.5rem; box-shadow: 0 16px 28px -12px rgba(0,0,0,0.7);
+        }
+        .meter-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.4rem; }
+        .meter-label { width: 90px; font-size: 0.95rem; font-weight: 600; color: #e6edf3; text-align: right; flex-shrink: 0; }
+        .meter-label.gold { color: #e6b450; }
+        .meter-label.usd { color: #58a6ff; }
+        .meter-track {
+            flex: 1; height: 26px; background: #21262d; border-radius: 40px; position: relative; overflow: hidden;
+            border: 1px solid #30363d;
+        }
+        .meter-fill { height: 100%; border-radius: 40px; transition: width 0.4s ease; display: flex; align-items: center; padding-left: 10px; font-size: 0.75rem; font-weight: 700; color: #0d1117; }
+        .meter-fill.gold-fill { background: linear-gradient(90deg, #c99e2b, #f0c45a); width: 78%; }
+        .meter-fill.usd-fill { background: linear-gradient(90deg, #1f6feb, #58a6ff); width: 34%; }
+
+        .bias-panel {
+            display: flex; gap: 1rem; align-items: center; justify-content: center;
+            background: rgba(46,160,67,0.1); border: 1px solid rgba(46,160,67,0.4);
+            border-radius: 16px; padding: 1rem 1.4rem; margin-top: 0.5rem; flex-wrap: wrap;
+        }
+        .bias-panel .bias-icon { font-size: 1.8rem; }
+        .bias-panel .bias-text { color: #3fb950; font-weight: 700; font-size: 1.1rem; }
+        .bias-panel .bias-sub { color: #9aa5b5; font-size: 0.9rem; }
+
+        /* timeframe panel */
+        .tf-panel {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; margin-top: 1.4rem;
+        }
+        .tf-cell {
+            background: #1c2128; border: 1px solid #30363d; border-radius: 14px; padding: 0.8rem 0.6rem; text-align: center;
+        }
+        .tf-cell .tf-name { color: #8b949e; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; }
+        .tf-cell .tf-value { font-size: 1.1rem; font-weight: 700; margin: 0.3rem 0; }
+        .tf-cell .tf-bias { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+        .bull { color: #3fb950; }
+        .bear { color: #f85149; }
+        .neutral { color: #d29922; }
+
+        /* settings table */
+        .settings-table {
+            width: 100%; border-collapse: collapse; background: #1c2128; border-radius: 18px; overflow: hidden;
+            border: 1px solid #30363d; margin-bottom: 1.5rem; font-size: 0.92rem;
+        }
+        .settings-table th {
+            background: #21262d; color: #e6b450; text-align: left; padding: 0.9rem 1.2rem; font-weight: 600;
+            border-bottom: 1px solid #30363d; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .settings-table td { padding: 0.9rem 1.2rem; color: #b1b9c5; border-bottom: 1px solid #21262d; }
+        .settings-table tr:last-child td { border-bottom: none; }
+        .settings-table td:first-child { color: #e6edf3; font-weight: 500; }
+        .settings-table .val { color: #e6b450; font-weight: 600; font-family: 'SF Mono', monospace; }
+
+        /* decision rules */
+        .decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .decision-card {
+            background: #1c2128; border-radius: 20px; padding: 1.6rem; border: 1px solid #30363d;
+        }
+        .decision-card.buy { border-top: 4px solid #2ea043; }
+        .decision-card.sell { border-top: 4px solid #f85149; }
+        .decision-card.sit { border-top: 4px solid #d29922; }
+        .decision-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 8px; }
+        .decision-card.buy h3 { color: #3fb950; }
+        .decision-card.sell h3 { color: #f85149; }
+        .decision-card.sit h3 { color: #d29922; }
+        .decision-card p { color: #b1b9c5; font-size: 0.93rem; line-height: 1.55; }
+
+        /* warning */
+        .warning-banner {
+            background: #1c2128; border-left: 4px solid #d4a82c; padding: 1.1rem 1.4rem; border-radius: 14px;
+            margin: 1.8rem 0; color: #b1b9c5; font-size: 0.93rem; line-height: 1.6; display: flex; gap: 14px; align-items: flex-start;
+        }
+        .warning-banner .icon { font-size: 1.6rem; line-height: 1; }
+        .warning-banner strong { color: #e6b450; }
+
+        .footer-note { text-align: center; margin-top: 2.5rem; color: #5e6a7a; font-size: 0.82rem; border-top: 1px solid #21262d; padding-top: 1.5rem; }
+
+        @media (max-width: 700px) {
+            .decision-grid { grid-template-columns: 1fr; }
+            .tf-panel { grid-template-columns: repeat(2, 1fr); }
+            .header h1 { font-size: 1.8rem; }
+            .meter-label { width: 70px; font-size: 0.85rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Gold Strength Meter — MT5</h1>
+            <div class="tag">MID Gold · Adrian Strategy filter · XAUUSD</div>
+            <div class="subtitle">Read gold vs USD strength before you take the 1m trigger. If the lines disagree with your setup, skip the trade.</div>
+        </div>
+
+        <!-- meter mockup -->
+        <div class="meter-box">
+            <div class="meter-row">
+                <div class="meter-label gold">GOLD</div>
+                <div class="meter-track"><div class="meter-fill gold-fill">78 · STRONG</div></div>
+            </div>
+            <div class="meter-row">
+                <div class="meter-label usd">USD</div>
+                <div class="meter-track"><div class="meter-fill usd-fill">34 · WEAK</div></div>
+            </div>
+
+            <div class="bias-panel">
+                <div class="bias-icon">🟢</div>
+                <div>
+                    <div class="bias-text">BIAS: GOLD BULLISH</div>
+                    <div class="bias-sub">Gold line above USD line → only look for BUY setups on the 1m trigger</div>
+                </div>
+            </div>
+
+            <div class="tf-panel">
+                <div class="tf-cell">
+                    <div class="tf-name">D1</div>
+                    <div class="tf-value bull">+72</div>
+                    <div class="tf-bias bull">Bull</div>
+                </div>
+                <div class="tf-cell">
+                    <div class="tf-name">H4</div>
+                    <div class="tf-value bull">+65</div>
+                    <div class="tf-bias bull">Bull</div>
+                </div>
+                <div class="tf-cell">
+                    <div class="tf-name">H1</div>
+                    <div class="tf-value bull">+58</div>
+                    <div class="tf-bias bull">Bull</div>
+                </div>
+                <div class="tf-cell">
+                    <div class="tf-name">M15</div>
+                    <div class="tf-value neutral">+12</div>
+                    <div class="tf-bias neutral">Flat</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- settings -->
+        <div class="section-title">⚙️ Scalping settings <span>MID Gold inputs</span></div>
+        <table class="settings-table">
+            <thead>
+                <tr><th>Input</th><th>Value for scalping</th><th>Why</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>InpPeriod</td><td class="val">10 – 20</td><td>Faster reaction to 1m/5m moves than the default.</td></tr>
+                <tr><td>InpSmoothMethod</td><td class="val">EMA</td><td>Less lag than SMA, better for short-term triggers.</td></tr>
+                <tr><td>InpSecureGap</td><td class="val">0.75 – 1.0</td><td>Filters out chop when Gold and USD lines are nearly touching.</td></tr>
+                <tr><td>Timeframes shown</td><td class="val">D1 · H4 · H1 · M15</td><td>Confirms the 15m bias is backed by larger structure.</td></tr>
+            </tbody>
+        </table>
+
+        <!-- decision rules -->
+        <div class="section-title">🎯 How to use it with the Adrian Strategy</div>
+        <div class="decision-grid">
+            <div class="decision-card buy">
+                <h3>🟢 Gold line above USD line</h3>
+                <p>Gold bullish bias. Only take <strong>BUY</strong> setups — 5m pullback into support, 1m bullish rejection candle. Ignore any sell signal that forms.</p>
+            </div>
+            <div class="decision-card sell">
+                <h3>🔴 Gold line below USD line</h3>
+                <p>Gold bearish bias. Only take <strong>SELL</strong> setups — 5m rally into resistance, 1m bearish rejection candle. Ignore any buy signal that forms.</p>
+            </div>
+            <div class="decision-card sit">
+                <h3>🟡 Lines touching / gap too small</h3>
+                <p><strong>Do nothing.</strong> The market has no clear direction. The 1m trigger is likely a trap. Wait for the lines to separate by at least the SecureGap value.</p>
+            </div>
+        </div>
+
+        <!-- warning -->
+        <div class="warning-banner">
+            <div class="icon">⚠️</div>
+            <div><strong>The meter is a filter, not a trigger.</strong> Do not wait for the meter to change before entering your 1m candle — you will be late. Use it only to decide whether you are allowed to take longs or shorts. The entry remains the close of the 1m rejection candle at the 5m zone, inside 11:00–15:00 or 16:00–20:00 EAT.</div>
+        </div>
+
+        <div class="warning-banner" style="border-left-color: #58a6ff;">
+            <div class="icon">💡</div>
+            <div><strong>Free alternative:</strong> If you don't want to buy MID Gold, use a standard USD strength meter (DuoFX). When USD is ranked weak (bottom), favor gold longs. When USD is ranked strong (top), favor gold shorts. It's a secondary filter, but free.</div>
+        </div>
+
+        <div class="footer-note">
+            Gold Strength Meter · MT5 guide · Adrian Strategy filter · Educational purposes only · Not financial advice
+        </div>
+    </div>
+</body>
+</html>
